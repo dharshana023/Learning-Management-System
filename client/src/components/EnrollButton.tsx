@@ -28,7 +28,10 @@ export function EnrollButton({ courseId, isEnrolled = false, onEnrollmentSuccess
         return null;
       }
       
-      return await apiRequest("POST", `/api/enrollments`, { courseId: Number(courseId) });
+      return await apiRequest("POST", `/api/enrollments`, { 
+        courseId: Number(courseId),
+        userId: user.id
+      });
     },
     onSuccess: (data) => {
       if (data) {
@@ -56,7 +59,7 @@ export function EnrollButton({ courseId, isEnrolled = false, onEnrollmentSuccess
   });
   
   const handleEnroll = async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       // Store the intended course to enroll in for after login
       sessionStorage.setItem('pendingEnrollment', String(courseId));
       navigate('/login');
@@ -64,8 +67,22 @@ export function EnrollButton({ courseId, isEnrolled = false, onEnrollmentSuccess
     }
     
     setLoading(true);
-    await mutation.mutateAsync();
-    setLoading(false);
+    try {
+      await mutation.mutateAsync();
+      // If successful, reset enrollment state
+      if (onEnrollmentSuccess) {
+        onEnrollmentSuccess();
+      }
+    } catch (error) {
+      console.error("Enrollment error:", error);
+      toast({
+        title: "Enrollment failed",
+        description: "There was an error enrolling in this course. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   if (isEnrolled) {

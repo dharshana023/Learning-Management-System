@@ -123,12 +123,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(courses);
   });
 
-  app.get("/api/courses/:id", async (req, res) => {
+  app.get("/api/courses/:id", optionalAuth, async (req, res) => {
     const courseId = parseInt(req.params.id);
+    const userId = (req as any).userId;
+    
     const course = await storage.getCourse(courseId);
     
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
+    }
+    
+    // If user is logged in, check enrollment status
+    if (userId) {
+      const enrollment = await storage.getEnrollment(userId, courseId);
+      return res.json({
+        ...course,
+        isEnrolled: !!enrollment
+      });
     }
     
     res.json(course);
@@ -186,6 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Enrollment Routes
   app.post("/api/enrollments", authenticate, async (req, res) => {
     try {
+      // Get userId from authentication middleware
       const userId = (req as any).userId;
       if (!userId) {
         return res.status(401).json({ message: "Authentication required" });
@@ -193,23 +205,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Extract courseId from request body
       const { courseId } = req.body;
-      if (!courseId || typeof courseId !== 'number') {
+      
+      if (!courseId || isNaN(Number(courseId))) {
         return res.status(400).json({ 
           message: "Invalid enrollment data", 
           errors: [{ code: "invalid_type", expected: "number", received: typeof courseId, path: ["courseId"], message: "Required" }]
         });
       }
       
+      const courseIdNum = Number(courseId);
+      
       // Check if already enrolled
-      const existingEnrollment = await storage.getEnrollment(userId, courseId);
+      const existingEnrollment = await storage.getEnrollment(userId, courseIdNum);
       if (existingEnrollment) {
         return res.status(400).json({ message: "Already enrolled in this course" });
+      }
+      
+      // Check if course exists
+      const course = await storage.getCourse(courseIdNum);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
       }
       
       // Enroll the user
       const enrollment = await storage.enrollUserInCourse({
         userId,
-        courseId
+        courseId: courseIdNum
       });
       
       res.status(201).json(enrollment);
