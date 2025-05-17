@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
 import { Helmet } from "react-helmet";
 import { useAuth } from "@/hooks/useAuth";
 import { Progress } from "@/components/ui/progress";
@@ -11,43 +12,99 @@ import TopNavbar from "@/components/TopNavbar";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Clock, BarChart, Users } from "lucide-react";
 
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  level: string;
+  category?: string;
+  lessonCount: number;
+  enrollmentCount?: number;
+}
+
+interface Lesson {
+  id: number;
+  courseId: number;
+  title: string;
+  description?: string;
+  videoUrl?: string;
+  order: number;
+  duration?: number;
+}
+
+interface Progress {
+  id: number;
+  userId: number;
+  lessonId: number;
+  completed: boolean;
+  lastAccessedAt?: string;
+}
+
+interface Enrollment {
+  id: number;
+  userId: number;
+  courseId: number;
+  enrolledAt: string;
+}
+
 export default function Course() {
   const { courseId } = useParams();
-  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const [refreshEnrollment, setRefreshEnrollment] = useState(false);
   
   // Fetch course details
-  const { data: course, isLoading: courseLoading } = useQuery({
+  const { data: course, isLoading: courseLoading } = useQuery<Course>({
     queryKey: [`/api/courses/${courseId}`],
   });
   
   // Fetch lessons for the course
-  const { data: lessons, isLoading: lessonsLoading } = useQuery({
+  const { data: lessons, isLoading: lessonsLoading } = useQuery<Lesson[]>({
     queryKey: [`/api/courses/${courseId}/lessons`],
   });
   
   // Fetch enrollment status if user is logged in
-  const { data: enrollment, isLoading: enrollmentLoading } = useQuery({
+  const { data: enrollment, isLoading: enrollmentLoading } = useQuery<Enrollment>({
     queryKey: [`/api/enrollments/${courseId}`],
     enabled: !!user,
+    refetchInterval: refreshEnrollment ? 1000 : false,
   });
   
   // Fetch user progress for this course if enrolled
-  const { data: progress, isLoading: progressLoading } = useQuery({
+  const { data: progress, isLoading: progressLoading } = useQuery<Progress[]>({
     queryKey: [`/api/progress/${courseId}`],
     enabled: !!enrollment,
   });
   
-  const isLoading = courseLoading || lessonsLoading || enrollmentLoading || progressLoading;
+  const isLoading = courseLoading || lessonsLoading || 
+    (isAuthenticated && enrollmentLoading) || 
+    (enrollment && progressLoading);
+  
+  // Handle successful enrollment
+  const handleEnrollmentSuccess = () => {
+    setRefreshEnrollment(true);
+    queryClient.invalidateQueries({ queryKey: [`/api/enrollments/${courseId}`] });
+  };
+  
+  // Reset refreshEnrollment flag after enrollment is fetched
+  useEffect(() => {
+    if (refreshEnrollment && enrollment) {
+      setRefreshEnrollment(false);
+    }
+  }, [refreshEnrollment, enrollment]);
   
   // Calculate course progress percentage
-  const progressPercentage = progress && lessons ? 
+  const progressPercentage = progress && lessons && lessons.length > 0 ? 
     calculateCourseProgress(progress, lessons) : 0;
   
   // Find first incomplete lesson or first lesson if none completed
   const nextLesson = lessons && progress ? 
     lessons.find(lesson => 
       !progress.some(p => p.lessonId === lesson.id && p.completed)
-    ) || lessons[0] : null;
+    ) || lessons[0] : 
+    lessons && lessons.length > 0 ? lessons[0] : null;
   
   function getLevelColor(level: string) {
     switch(level?.toLowerCase()) {
@@ -135,7 +192,10 @@ export default function Course() {
                   <p className="text-xs text-gray-500 text-right">{progressPercentage}% complete</p>
                 </div>
               ) : (
-                <EnrollButton courseId={parseInt(courseId as string)} />
+                <EnrollButton 
+                  courseId={parseInt(courseId as string)} 
+                  onEnrollmentSuccess={handleEnrollmentSuccess} 
+                />
               )}
             </div>
           </div>
@@ -173,7 +233,7 @@ export default function Course() {
                 <div className="mt-6">
                   <Button 
                     className="w-full md:w-auto" 
-                    onClick={() => window.location.href = `/lesson/${nextLesson.id}`}
+                    onClick={() => navigate(`/lesson/${nextLesson.id}`)}
                   >
                     {progress && progress.length > 0 ? 'Continue Learning' : 'Start Learning'}
                     <ChevronRight className="ml-2 h-4 w-4" />
@@ -189,9 +249,9 @@ export default function Course() {
               
               {lessons && lessons.length > 0 ? (
                 <div className="space-y-4">
-                  {lessons.map((lesson: any) => {
-                    const lessonProgress = progress?.find((p: any) => p.lessonId === lesson.id);
-                    const isCompleted = lessonProgress?.completed;
+                  {lessons.map((lesson) => {
+                    const lessonProgress = progress?.find(p => p.lessonId === lesson.id);
+                    const isCompleted = lessonProgress?.completed || false;
                     
                     return (
                       <div 
@@ -222,7 +282,7 @@ export default function Course() {
                           <Button 
                             variant={isCompleted ? "outline" : "default"}
                             size="sm"
-                            onClick={() => window.location.href = `/lesson/${lesson.id}`}
+                            onClick={() => navigate(`/lesson/${lesson.id}`)}
                           >
                             {isCompleted ? 'Review' : 'Start'}
                           </Button>

@@ -9,9 +9,10 @@ import { apiRequest } from "@/lib/queryClient";
 interface EnrollButtonProps {
   courseId: number;
   isEnrolled?: boolean;
+  onEnrollmentSuccess?: () => void;
 }
 
-export function EnrollButton({ courseId, isEnrolled = false }: EnrollButtonProps) {
+export function EnrollButton({ courseId, isEnrolled = false, onEnrollmentSuccess }: EnrollButtonProps) {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
@@ -21,20 +22,29 @@ export function EnrollButton({ courseId, isEnrolled = false }: EnrollButtonProps
   const mutation = useMutation({
     mutationFn: async () => {
       if (!isAuthenticated) {
+        // Store the intended course to enroll in for after login
+        sessionStorage.setItem('pendingEnrollment', String(courseId));
         navigate('/login');
-        return;
+        return null;
       }
       
       return await apiRequest("POST", `/api/enrollments`, { courseId });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/enrollments'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
-      
-      toast({
-        title: "Successfully enrolled",
-        description: "You have been enrolled in this course",
-      });
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: ['/api/enrollments'] });
+        queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
+        
+        toast({
+          title: "Successfully enrolled",
+          description: "You have been enrolled in this course",
+        });
+        
+        // Call the callback if provided
+        if (onEnrollmentSuccess) {
+          onEnrollmentSuccess();
+        }
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -47,6 +57,8 @@ export function EnrollButton({ courseId, isEnrolled = false }: EnrollButtonProps
   
   const handleEnroll = async () => {
     if (!isAuthenticated) {
+      // Store the intended course to enroll in for after login
+      sessionStorage.setItem('pendingEnrollment', String(courseId));
       navigate('/login');
       return;
     }
