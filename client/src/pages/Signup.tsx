@@ -22,7 +22,7 @@ export default function Signup() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const mutation = useMutation({
-    mutationFn: async (data: { username: string; email: string; password: string }) => {
+    mutationFn: async (data: { username: string; email: string; password: string; confirmPassword: string }) => {
       const response = await apiRequest("POST", "/api/auth/signup", data);
       return response;
     },
@@ -97,8 +97,8 @@ export default function Signup() {
     
     if (!validateForm()) return;
     
-    const { username, email, password } = formData;
-    mutation.mutate({ username, email, password });
+    const { username, email, password, confirmPassword } = formData;
+    mutation.mutate({ username, email, password, confirmPassword });
   };
   
   return (

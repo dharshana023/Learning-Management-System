@@ -96,8 +96,8 @@ export default function Course() {
   }, [refreshEnrollment, enrollment]);
   
   // Calculate course progress percentage
-  const progressPercentage = progress && lessons && lessons.length > 0 ? 
-    calculateCourseProgress(progress, lessons) : 0;
+  const progressPercentage = progress && lessons && lessons.length > 0 && courseId ? 
+    calculateCourseProgress(progress, parseInt(courseId)) : 0;
   
   // Find first incomplete lesson or first lesson if none completed
   const nextLesson = lessons && progress ? 
