@@ -3,9 +3,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { loginUser } from "@/lib/auth";
 
 import {
   Form,
@@ -46,13 +46,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (data: LoginFormValues) => {
-      return apiRequest("POST", "/api/auth/login", data);
-    },
+    mutationFn: loginUser,
     onSuccess: (data) => {
-      // Store token in localStorage
-      localStorage.setItem("authToken", data.token);
-      
       toast({
         title: "Login successful",
         description: "You have been logged in successfully.",

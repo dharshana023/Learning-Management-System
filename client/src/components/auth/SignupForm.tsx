@@ -3,9 +3,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { signupUser } from "@/lib/auth";
 
 import {
   Form,
@@ -58,13 +58,8 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
   });
 
   const signupMutation = useMutation({
-    mutationFn: async (data: SignupFormValues) => {
-      return apiRequest("POST", "/api/auth/signup", data);
-    },
+    mutationFn: signupUser,
     onSuccess: (data) => {
-      // Store token in localStorage
-      localStorage.setItem("authToken", data.token);
-      
       toast({
         title: "Account created",
         description: "Your account has been created successfully.",

@@ -1,5 +1,7 @@
 import { Link } from "wouter";
 import { calculateCourseProgress } from "@/lib/courses";
+import { EnrollButton } from "./EnrollButton";
+import { Badge } from "@/components/ui/badge";
 
 interface CourseCardProps {
   course: {
@@ -9,6 +11,7 @@ interface CourseCardProps {
     imageUrl: string;
     level: string;
     lessonCount: number;
+    isEnrolled?: boolean;
   };
   progress?: { lessonId: number; completed: boolean }[];
   showEnrollButton?: boolean;
@@ -40,9 +43,11 @@ const CourseCard = ({ course, progress, showEnrollButton = false }: CourseCardPr
     lastAccessText = "Completed";
   }
 
+  const isEnrolled = course.isEnrolled || progressPercent > 0;
+
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-      <div className="h-32 bg-gray-200 rounded-t-lg relative overflow-hidden">
+      <div className="h-40 bg-gray-200 rounded-t-lg relative overflow-hidden">
         <img 
           src={course.imageUrl} 
           alt={`${course.title} Course`} 
@@ -55,13 +60,11 @@ const CourseCard = ({ course, progress, showEnrollButton = false }: CourseCardPr
           </div>
         </div>
         
-        {showEnrollButton && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <button className="bg-white text-primary-600 font-medium px-4 py-2 rounded-lg hover:bg-primary-50">
-              Enroll Now
-            </button>
-          </div>
-        )}
+        <div className="absolute top-2 right-2">
+          <Badge variant={getLevelVariant(course.level)}>
+            {course.level}
+          </Badge>
+        </div>
       </div>
       
       <div className="p-4">
@@ -92,15 +95,39 @@ const CourseCard = ({ course, progress, showEnrollButton = false }: CourseCardPr
           ></div>
         </div>
         
-        <div className="mt-4 flex justify-between">
-          <Link href={progressPercent > 0 ? `/course/${course.id}/resume` : `/course/${course.id}`}>
-            <a className="text-primary-600 hover:text-primary-700 text-sm font-medium">{actionText}</a>
-          </Link>
-          <span className="text-gray-500 text-sm">{lastAccessText}</span>
+        <div className="mt-3 text-sm text-gray-500 line-clamp-2 min-h-[40px]">
+          {course.description}
+        </div>
+        
+        <div className="mt-4">
+          {showEnrollButton ? (
+            <EnrollButton courseId={course.id} isEnrolled={isEnrolled} />
+          ) : (
+            <div className="flex justify-between items-center">
+              <Link href={progressPercent > 0 ? `/course/${course.id}/resume` : `/course/${course.id}`}>
+                <a className="text-primary-600 hover:text-primary-700 text-sm font-medium">{actionText}</a>
+              </Link>
+              <span className="text-gray-500 text-sm">{lastAccessText}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
+
+// Helper function to determine the badge variant based on level
+function getLevelVariant(level: string) {
+  switch (level.toLowerCase()) {
+    case 'beginner':
+      return 'default';
+    case 'intermediate':
+      return 'secondary';
+    case 'advanced':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+}
 
 export default CourseCard;
