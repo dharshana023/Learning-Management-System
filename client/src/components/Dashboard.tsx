@@ -10,16 +10,16 @@ import { Book, CheckCircle, Clock, Award } from "lucide-react";
 const Dashboard = () => {
   const { user } = useAuth();
   
-  const { data: courses } = useQuery({ 
-    queryKey: ["/api/courses"], 
+  const { data: courses, isLoading: coursesLoading } = useQuery({ 
+    queryKey: ["/api/courses"],
   });
   
-  const { data: progress } = useQuery({ 
+  const { data: progress, isLoading: progressLoading } = useQuery({ 
     queryKey: [`/api/progress`],
     enabled: !!user,
   });
   
-  const { data: recentLessons } = useQuery({ 
+  const { data: recentLessons, isLoading: recentLoading } = useQuery({ 
     queryKey: [`/api/progress/recent`],
     staleTime: 1000 * 60 * 5, // 5 minutes
     enabled: !!user,
@@ -27,41 +27,63 @@ const Dashboard = () => {
   
   // Calculate statistics
   const calculateStats = () => {
-    if (!progress) return { enrolled: 0, completed: 0, hours: 0, certificates: 0 };
+    if (!progress || !courses) return { enrolled: 0, completed: 0, hours: 0, certificates: 0 };
     
-    // Get unique course IDs
+    // Get unique course IDs from progress
     const enrolledCourses = new Set(progress.map((p: any) => p.courseId));
     
     // Count completed lessons
     const completedLessons = progress.filter((p: any) => p.completed).length;
     
-    // Estimate learning hours (30 min per completed lesson)
-    const learningHours = Math.round(completedLessons * 0.5 * 10) / 10;
+    // Calculate learning hours (30 min per lesson)
+    const learningHours = Math.round((completedLessons * 0.5) * 10) / 10;
     
-    // Count courses with 100% completion
-    const courseProgress = Array.from(enrolledCourses).map(courseId => {
+    // Count courses with all lessons completed
+    const completedCourses = Array.from(enrolledCourses).filter(courseId => {
       const courseLessons = progress.filter((p: any) => p.courseId === courseId);
       const completedCourseLessons = courseLessons.filter((p: any) => p.completed);
       return completedCourseLessons.length > 0 && completedCourseLessons.length === courseLessons.length;
+    }).length;
+    
+    // Get new enrollments in last 7 days
+    const newEnrollments = progress.filter((p: any) => {
+      const enrollmentDate = new Date(p.createdAt);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return enrollmentDate > weekAgo;
     });
     
-    const completedCourses = courseProgress.filter(completed => completed).length;
+    // Get completed lessons in last week
+    const lastWeekCompleted = progress.filter((p: any) => {
+      if (!p.completed) return false;
+      const completedDate = new Date(p.updatedAt);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return completedDate > weekAgo;
+    }).length;
     
     return {
       enrolled: enrolledCourses.size,
       completed: completedLessons,
       hours: learningHours,
       certificates: completedCourses,
+      newEnrollments: newEnrollments.length,
+      lastWeekCompleted
     };
   };
   
+  const isLoading = coursesLoading || progressLoading || recentLoading;
   const stats = calculateStats();
-  
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <div>
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {user?.username}! Track your learning progress.</p>
+        <p className="text-gray-600">Welcome back, {user?.username}!</p>
       </div>
 
       {/* Stats Overview */}
@@ -69,17 +91,19 @@ const Dashboard = () => {
         <StatsCard 
           title="Enrolled Courses" 
           value={stats.enrolled.toString()} 
-          change={"+1 new"} 
+          change={stats.newEnrollments > 0 ? `+${stats.newEnrollments} new` : undefined} 
           icon={<Book className="h-6 w-6 text-primary-600" />} 
-          bgColor="bg-primary-50" 
+          bgColor="bg-primary-50"
+          isLoading={isLoading}
         />
         
         <StatsCard 
           title="Completed Lessons" 
           value={stats.completed.toString()} 
-          change={"+3 this week"} 
+          change={stats.lastWeekCompleted > 0 ? `+${stats.lastWeekCompleted} this week` : undefined}
           icon={<CheckCircle className="h-6 w-6 text-green-600" />} 
-          bgColor="bg-green-50" 
+          bgColor="bg-green-50"
+          isLoading={isLoading}
         />
         
         <StatsCard 
@@ -87,7 +111,8 @@ const Dashboard = () => {
           value={stats.hours.toString()} 
           subtext="hours" 
           icon={<Clock className="h-6 w-6 text-blue-600" />} 
-          bgColor="bg-blue-50" 
+          bgColor="bg-blue-50"
+          isLoading={isLoading}
         />
         
         <StatsCard 
@@ -95,7 +120,8 @@ const Dashboard = () => {
           value={stats.certificates.toString()} 
           subtext="earned" 
           icon={<Award className="h-6 w-6 text-yellow-600" />} 
-          bgColor="bg-yellow-50" 
+          bgColor="bg-yellow-50"
+          isLoading={isLoading}
         />
       </div>
 
@@ -121,7 +147,9 @@ const Dashboard = () => {
         </div>
         
         <CourseList
-          courses={courses?.slice(4, 8)} // Showing courses that aren't in progress
+          courses={courses?.filter((c: any) => 
+            !progress?.some(p => p.courseId === c.id)
+          ).slice(0, 4)}
           showEnrollButton={true}
         />
       </div>
