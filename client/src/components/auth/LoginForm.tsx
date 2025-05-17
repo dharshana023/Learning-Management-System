@@ -48,10 +48,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const loginMutation = useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
-      localStorage.setItem("authToken", data.token);
       toast({
         title: "Login successful",
-        description: "Welcome back!",
+        description: "You have been logged in successfully.",
       });
       
       if (onSuccess) {
@@ -59,7 +58,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       } else {
         // Navigate to home page
         navigate("/");
-        window.location.reload(); // Refresh to update auth state
       }
     },
     onError: (error: any) => {

@@ -60,10 +60,9 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
   const signupMutation = useMutation({
     mutationFn: signupUser,
     onSuccess: (data) => {
-      localStorage.setItem("authToken", data.token);
       toast({
         title: "Account created",
-        description: "Welcome to Learning Tracker!",
+        description: "Your account has been created successfully.",
       });
       
       if (onSuccess) {
@@ -71,7 +70,6 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       } else {
         // Navigate to home page
         navigate("/");
-        window.location.reload(); // Refresh to update auth state
       }
     },
     onError: (error: any) => {
