@@ -89,9 +89,11 @@ const Dashboard = () => {
 
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {user?.username}!</p>
+        <p className="text-lg text-gray-600">
+          Welcome back, <span className="font-semibold">{user?.username || 'User'}</span>!
+        </p>
       </div>
 
       {/* Stats Overview */}
