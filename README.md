@@ -18,6 +18,9 @@ A modern web application for tracking educational progress and managing online c
 - Database: SQLite with Drizzle ORM
 - UI Components: Shadcn/ui
 
+  Demo
+  
+
 ## Getting Started
 
 1. Install dependencies:
