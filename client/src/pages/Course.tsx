@@ -1,66 +1,76 @@
-import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "wouter";
+import { Helmet } from "react-helmet";
+import { useAuth } from "@/hooks/useAuth";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { calculateCourseProgress } from "@/lib/courses";
+import { EnrollButton } from "@/components/EnrollButton";
 import Sidebar from "@/components/Sidebar";
 import TopNavbar from "@/components/TopNavbar";
-import { ArrowLeft, Play, CheckCircle } from "lucide-react";
-import { Helmet } from "react-helmet";
-import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Clock, BarChart, Users } from "lucide-react";
 
-const Course = () => {
-  const { courseId } = useParams<{ courseId: string }>();
-  const [_, navigate] = useLocation();
-  const userId = 1; // Default user ID
-
+export default function Course() {
+  const { courseId } = useParams();
+  const { user } = useAuth();
+  
   // Fetch course details
-  const { data: course, isLoading: isLoadingCourse } = useQuery({
+  const { data: course, isLoading: courseLoading } = useQuery({
     queryKey: [`/api/courses/${courseId}`],
   });
-
-  // Fetch lessons for this course
-  const { data: lessons, isLoading: isLoadingLessons } = useQuery({
+  
+  // Fetch lessons for the course
+  const { data: lessons, isLoading: lessonsLoading } = useQuery({
     queryKey: [`/api/courses/${courseId}/lessons`],
-    enabled: !!courseId,
   });
-
-  // Fetch progress for this course
-  const { data: progress, isLoading: isLoadingProgress } = useQuery({
-    queryKey: [`/api/progress/${userId}/course/${courseId}`],
-    enabled: !!courseId,
+  
+  // Fetch enrollment status if user is logged in
+  const { data: enrollment, isLoading: enrollmentLoading } = useQuery({
+    queryKey: [`/api/enrollments/${courseId}`],
+    enabled: !!user,
   });
-
-  // Calculate which lessons are completed
-  const completedLessons = new Set(
-    progress?.filter((p: any) => p.completed).map((p: any) => p.lessonId) || []
-  );
-
+  
+  // Fetch user progress for this course if enrolled
+  const { data: progress, isLoading: progressLoading } = useQuery({
+    queryKey: [`/api/progress/${courseId}`],
+    enabled: !!enrollment,
+  });
+  
+  const isLoading = courseLoading || lessonsLoading || enrollmentLoading || progressLoading;
+  
   // Calculate course progress percentage
-  const progressPercentage = lessons?.length
-    ? Math.round((completedLessons.size / lessons.length) * 100)
-    : 0;
-
-  // Start the first lesson that's not completed, or the first lesson if none are completed
-  const handleStartCourse = () => {
-    if (!lessons?.length) return;
-    
-    // Find first incomplete lesson, or just take the first lesson
-    const firstIncomplete = lessons.find((lesson: any) => !completedLessons.has(lesson.id));
-    const lessonToStart = firstIncomplete || lessons[0];
-    
-    navigate(`/lesson/${lessonToStart.id}`);
-  };
-
-  const isLoading = isLoadingCourse || isLoadingLessons || isLoadingProgress;
-
+  const progressPercentage = progress && lessons ? 
+    calculateCourseProgress(progress, lessons) : 0;
+  
+  // Find first incomplete lesson or first lesson if none completed
+  const nextLesson = lessons && progress ? 
+    lessons.find(lesson => 
+      !progress.some(p => p.lessonId === lesson.id && p.completed)
+    ) || lessons[0] : null;
+  
+  function getLevelColor(level: string) {
+    switch(level?.toLowerCase()) {
+      case 'beginner': return 'bg-green-100 text-green-800';
+      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
+      case 'advanced': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
         <Sidebar />
         <main className="flex-1 md:ml-64 min-h-screen">
           <TopNavbar />
-          <div className="py-6">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-center items-center h-64">
-                <p className="text-gray-500">Loading course details...</p>
+          <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div className="animate-pulse space-y-8">
+              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+              <div className="h-64 bg-gray-200 rounded"></div>
+              <div className="space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
               </div>
             </div>
           </div>
@@ -68,35 +78,32 @@ const Course = () => {
       </div>
     );
   }
-
+  
   if (!course) {
     return (
       <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
         <Sidebar />
         <main className="flex-1 md:ml-64 min-h-screen">
           <TopNavbar />
-          <div className="py-6">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-                <p className="text-red-500">Course not found</p>
-                <Link href="/">
-                  <a className="mt-4 inline-block text-primary-600 hover:text-primary-700">
-                    Back to Dashboard
-                  </a>
-                </Link>
-              </div>
+          <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div className="text-center py-16">
+              <h2 className="text-2xl font-bold text-gray-900">Course not found</h2>
+              <p className="mt-2 text-gray-600">The course you're looking for doesn't exist or has been removed.</p>
+              <Button className="mt-6" onClick={() => window.history.back()}>
+                Go Back
+              </Button>
             </div>
           </div>
         </main>
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       <Helmet>
         <title>{course.title} - Learning Tracker</title>
-        <meta name="description" content={`Learn ${course.title}. ${course.description}`} />
+        <meta name="description" content={course.description} />
       </Helmet>
       
       <Sidebar />
@@ -104,101 +111,133 @@ const Course = () => {
       <main className="flex-1 md:ml-64 min-h-screen">
         <TopNavbar />
         
-        <div className="py-6">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mb-6">
-              <Link href="/">
-                <a className="inline-flex items-center text-gray-600 hover:text-gray-900">
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  Back to Dashboard
-                </a>
-              </Link>
+        <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="md:flex md:items-start md:justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{course.title}</h1>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="outline" className={getLevelColor(course.level)}>
+                  {course.level}
+                </Badge>
+                {course.category && (
+                  <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                    {course.category}
+                  </Badge>
+                )}
+              </div>
             </div>
             
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="relative h-48 md:h-64">
-                <img 
-                  src={course.imageUrl} 
-                  alt={course.title} 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-6">
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">{course.title}</h1>
-                  <p className="text-white text-opacity-90 mt-2">{course.description}</p>
+            <div className="mt-4 md:mt-0 flex-shrink-0 md:w-64">
+              {enrollment ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-500 font-medium">Course Progress</p>
+                  <Progress value={progressPercentage} className="h-2" />
+                  <p className="text-xs text-gray-500 text-right">{progressPercentage}% complete</p>
+                </div>
+              ) : (
+                <EnrollButton courseId={parseInt(courseId as string)} />
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-white shadow rounded-lg overflow-hidden mb-8">
+            <div className="p-6">
+              <h2 className="text-xl font-medium text-gray-900 mb-4">About this course</h2>
+              <p className="text-gray-600 mb-6">{course.description}</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+                <div className="flex items-center">
+                  <Clock className="h-5 w-5 text-primary-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Duration</p>
+                    <p className="text-md font-medium">{course.lessonCount} lessons</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <BarChart className="h-5 w-5 text-primary-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Level</p>
+                    <p className="text-md font-medium">{course.level}</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 text-primary-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Students</p>
+                    <p className="text-md font-medium">{course.enrollmentCount || 0} enrolled</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center">
-                    <span className="text-sm bg-gray-100 text-gray-800 font-medium rounded-full px-3 py-1 mr-2">
-                      {course.category}
-                    </span>
-                    <span className="text-sm bg-gray-100 text-gray-800 font-medium rounded-full px-3 py-1">
-                      {course.level}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium mr-2">
-                      {completedLessons.size}/{lessons?.length || 0} lessons completed
-                    </span>
-                    <div className="w-24 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${progressPercentage === 100 ? "bg-green-500" : "bg-primary-500"}`} 
-                        style={{ width: `${progressPercentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
+              {enrollment && nextLesson && (
+                <div className="mt-6">
+                  <Button 
+                    className="w-full md:w-auto" 
+                    onClick={() => window.location.href = `/lesson/${nextLesson.id}`}
+                  >
+                    {progress && progress.length > 0 ? 'Continue Learning' : 'Start Learning'}
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </div>
-                
-                <button 
-                  onClick={handleStartCourse}
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors mb-8"
-                >
-                  {progressPercentage > 0 && progressPercentage < 100 
-                    ? "Continue Course" 
-                    : progressPercentage === 100 
-                      ? "Review Course" 
-                      : "Start Course"}
-                </button>
-                
-                <h2 className="text-xl font-bold mb-4">Course Content</h2>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-medium text-gray-900 mb-6">Course Content</h2>
+              
+              {lessons && lessons.length > 0 ? (
                 <div className="space-y-4">
-                  {lessons?.map((lesson: any) => (
-                    <Link key={lesson.id} href={`/lesson/${lesson.id}`}>
-                      <a className="block">
-                        <div className="flex items-start p-4 hover:bg-gray-50 rounded-lg border border-gray-100 transition-colors">
-                          <div className="flex-shrink-0 mr-4">
-                            {completedLessons.has(lesson.id) ? (
-                              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                              </div>
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                                <Play className="h-5 w-5 text-primary-600" />
-                              </div>
-                            )}
+                  {lessons.map((lesson: any) => {
+                    const lessonProgress = progress?.find((p: any) => p.lessonId === lesson.id);
+                    const isCompleted = lessonProgress?.completed;
+                    
+                    return (
+                      <div 
+                        key={lesson.id} 
+                        className={`p-4 rounded-lg border ${isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                              isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200'
+                            }`}>
+                              {isCompleted ? (
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <span className="text-xs text-gray-600">{lesson.order}</span>
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="text-gray-900 font-medium">{lesson.title}</h3>
+                              {lesson.duration && (
+                                <p className="text-xs text-gray-500">{lesson.duration} min</p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-medium">{lesson.title}</h3>
-                            <p className="text-sm text-gray-500">
-                              {completedLessons.has(lesson.id) ? "Completed" : "Not completed"}
-                            </p>
-                          </div>
+                          
+                          <Button 
+                            variant={isCompleted ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => window.location.href = `/lesson/${lesson.id}`}
+                          >
+                            {isCompleted ? 'Review' : 'Start'}
+                          </Button>
                         </div>
-                      </a>
-                    </Link>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              ) : (
+                <p className="text-gray-500">No lessons available for this course yet.</p>
+              )}
             </div>
           </div>
         </div>
       </main>
     </div>
   );
-};
-
-export default Course;
+}

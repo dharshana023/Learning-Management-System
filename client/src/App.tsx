@@ -10,6 +10,7 @@ import LessonPage from "@/pages/LessonPage";
 import AllCourses from "@/pages/AllCourses";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import MyCourses from "@/pages/MyCourses";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 
@@ -42,7 +43,10 @@ function Router() {
       <Route path="/course/:courseId/resume" component={Course} />
       <Route path="/lesson/:lessonId" component={LessonPage} />
       <Route path="/courses/my-courses">
-        <ProtectedRoute component={Home} />
+        <ProtectedRoute component={MyCourses} />
+      </Route>
+      <Route path="/my-courses">
+        <ProtectedRoute component={MyCourses} />
       </Route>
       <Route path="/certificates">
         <ProtectedRoute component={Home} />

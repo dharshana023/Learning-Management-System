@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 interface EnrollButtonProps {
   courseId: number;
@@ -11,63 +12,68 @@ interface EnrollButtonProps {
 }
 
 export function EnrollButton({ courseId, isEnrolled = false }: EnrollButtonProps) {
-  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
   
-  const enrollMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/enrollments", { courseId });
+      if (!isAuthenticated) {
+        navigate('/login');
+        return;
+      }
+      
+      return await apiRequest("POST", `/api/enrollments`, { courseId });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/enrollments'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
+      
       toast({
-        title: "Successfully enrolled!",
-        description: "You have been enrolled in this course.",
+        title: "Successfully enrolled",
+        description: "You have been enrolled in this course",
       });
-      
-      // Invalidate queries to update the UI
-      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/enrollments"] });
-      
-      // Redirect to the course page
-      navigate(`/course/${courseId}`);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: "Enrollment failed",
-        description: error.message || "Failed to enroll. Please try again.",
+        title: "Failed to enroll",
+        description: error.message || "An error occurred while enrolling in this course",
         variant: "destructive",
       });
     },
   });
   
-  const handleClick = () => {
+  const handleEnroll = async () => {
     if (!isAuthenticated) {
-      // Redirect to login page if not authenticated
-      navigate(`/login?redirect=/course/${courseId}`);
+      navigate('/login');
       return;
     }
     
-    if (!isEnrolled) {
-      enrollMutation.mutate();
-    } else {
-      // Already enrolled, navigate to course page
-      navigate(`/course/${courseId}`);
-    }
+    setLoading(true);
+    await mutation.mutateAsync();
+    setLoading(false);
   };
+  
+  if (isEnrolled) {
+    return (
+      <Button 
+        onClick={() => navigate(`/course/${courseId}/resume`)}
+        className="w-full"
+      >
+        Continue Learning
+      </Button>
+    );
+  }
   
   return (
     <Button 
-      onClick={handleClick}
-      disabled={enrollMutation.isPending}
+      onClick={handleEnroll}
+      disabled={loading}
       className="w-full"
     >
-      {enrollMutation.isPending 
-        ? "Enrolling..." 
-        : isEnrolled 
-          ? "Continue Learning" 
-          : "Enroll Now"}
+      {loading ? "Enrolling..." : "Enroll Now"}
     </Button>
   );
 }
