@@ -6,19 +6,21 @@ import CourseList from "./CourseList";
 import { Book, CheckCircle, Clock, Award } from "lucide-react";
 
 const Dashboard = () => {
-  const userId = 1; // Default user ID
+  const { user } = useAuth();
   
   const { data: courses } = useQuery({ 
     queryKey: ["/api/courses"], 
   });
   
   const { data: progress } = useQuery({ 
-    queryKey: [`/api/progress/${userId}`],
+    queryKey: [`/api/progress/${user?.id}`],
+    enabled: !!user,
   });
   
   const { data: recentLessons } = useQuery({ 
-    queryKey: [`/api/progress/${userId}/recent`],
+    queryKey: [`/api/progress/${user?.id}/recent`],
     staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !!user,
   });
   
   // Calculate statistics
@@ -31,14 +33,15 @@ const Dashboard = () => {
     // Count completed lessons
     const completedLessons = progress.filter((p: any) => p.completed).length;
     
-    // Estimate learning hours (approx 15 min per lesson viewed)
-    const learningHours = Math.round(progress.length * 0.25 * 10) / 10;
+    // Estimate learning hours (30 min per completed lesson)
+    const completedLessonsCount = progress.filter((p: any) => p.completed).length;
+    const learningHours = Math.round(completedLessonsCount * 0.5 * 10) / 10;
     
-    // Count courses with 100% completion
+    // Count courses with all lessons completed
     const courseProgress = Array.from(enrolledCourses).map(courseId => {
       const courseLessons = progress.filter((p: any) => p.courseId === courseId);
       const completedCourseLessons = courseLessons.filter((p: any) => p.completed);
-      return completedCourseLessons.length === 3; // Each course has 3 lessons
+      return completedCourseLessons.length > 0 && completedCourseLessons.length === courseLessons.length;
     });
     
     const completedCourses = courseProgress.filter(completed => completed).length;
