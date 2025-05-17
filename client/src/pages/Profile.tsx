@@ -1,5 +1,4 @@
 
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Helmet } from "react-helmet";
 import Sidebar from "@/components/Sidebar";
@@ -22,25 +21,32 @@ export default function Profile() {
         <TopNavbar />
         
         <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Profile</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">My Profile</h1>
           
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={user?.profileImageUrl} />
-                  <AvatarFallback>{user?.username?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-xl font-medium">{user?.username}</h3>
-                  <p className="text-gray-500">{user?.email}</p>
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={user?.profileImageUrl} />
+                    <AvatarFallback>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-2xl font-medium">{user?.username}</h3>
+                    <p className="text-gray-500">{user?.email}</p>
+                    {user?.role && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
+                        {user.role}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
