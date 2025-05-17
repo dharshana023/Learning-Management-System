@@ -13,6 +13,11 @@ const Dashboard = () => {
   const { data: courses, isLoading: coursesLoading } = useQuery({ 
     queryKey: ["/api/courses"],
   });
+
+  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ["/api/enrollments"],
+    enabled: !!user,
+  });
   
   const { data: progress, isLoading: progressLoading } = useQuery({ 
     queryKey: [`/api/progress`],
@@ -27,10 +32,13 @@ const Dashboard = () => {
   
   // Calculate statistics
   const calculateStats = () => {
-    if (!progress || !courses) return { enrolled: 0, completed: 0, hours: 0, certificates: 0 };
+    if (!progress || !courses || !enrollments) return { enrolled: 0, completed: 0, hours: 0, certificates: 0 };
     
-    // Get unique course IDs from progress
-    const enrolledCourses = new Set(progress.map((p: any) => p.courseId));
+    // Get enrolled courses count
+    const enrolledCount = enrollments.length;
+    
+    // Get unique course IDs from enrollments
+    const enrolledCourses = new Set(enrollments.map((e: any) => e.courseId));
     
     // Count completed lessons
     const completedLessons = progress.filter((p: any) => p.completed).length;
@@ -72,7 +80,7 @@ const Dashboard = () => {
     };
   };
   
-  const isLoading = coursesLoading || progressLoading || recentLoading;
+  const isLoading = coursesLoading || enrollmentsLoading || progressLoading || recentLoading;
   const stats = calculateStats();
 
   if (!user) {
