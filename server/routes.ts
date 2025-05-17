@@ -187,7 +187,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/enrollments", authenticate, async (req, res) => {
     try {
       const userId = (req as any).userId;
-      const { courseId } = insertEnrollmentSchema.parse(req.body);
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Extract courseId from request body
+      const { courseId } = req.body;
+      if (!courseId || typeof courseId !== 'number') {
+        return res.status(400).json({ 
+          message: "Invalid enrollment data", 
+          errors: [{ code: "invalid_type", expected: "number", received: typeof courseId, path: ["courseId"], message: "Required" }]
+        });
+      }
       
       // Check if already enrolled
       const existingEnrollment = await storage.getEnrollment(userId, courseId);
@@ -206,6 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid enrollment data", errors: error.errors });
       }
+      console.error("Error in enrollment:", error);
       res.status(500).json({ message: "Server error" });
     }
   });

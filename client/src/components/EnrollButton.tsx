@@ -21,14 +21,14 @@ export function EnrollButton({ courseId, isEnrolled = false, onEnrollmentSuccess
   
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !user) {
         // Store the intended course to enroll in for after login
         sessionStorage.setItem('pendingEnrollment', String(courseId));
         navigate('/login');
         return null;
       }
       
-      return await apiRequest("POST", `/api/enrollments`, { courseId });
+      return await apiRequest("POST", `/api/enrollments`, { courseId: Number(courseId) });
     },
     onSuccess: (data) => {
       if (data) {
