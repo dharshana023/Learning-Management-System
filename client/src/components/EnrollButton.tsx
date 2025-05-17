@@ -35,8 +35,11 @@ export function EnrollButton({ courseId, isEnrolled = false, onEnrollmentSuccess
     },
     onSuccess: (data) => {
       if (data) {
+        // Invalidate all relevant queries
         queryClient.invalidateQueries({ queryKey: ['/api/enrollments'] });
         queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/progress'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/progress/recent'] });
         
         toast({
           title: "Successfully enrolled",
