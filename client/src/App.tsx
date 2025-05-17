@@ -18,17 +18,36 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { Redirect } from "wouter";
 
+// Placeholder components for Profile and Settings
+function Profile() {
+  return (
+    <div>
+      <h1>Profile</h1>
+      <p>User profile details go here.</p>
+    </div>
+  );
+}
+
+function Settings() {
+  return (
+    <div>
+      <h1>Settings</h1>
+      <p>User settings go here.</p>
+    </div>
+  );
+}
+
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { isAuthenticated, isLoading } = useRequireAuth();
-  
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
-  
+
   if (!isAuthenticated) {
     return <Redirect to="/login" />;
   }
-  
+
   return <Component {...rest} />;
 }
 
@@ -52,6 +71,12 @@ function Router() {
         <ProtectedRoute component={Home} />
       </Route>
       <Route path="/category/:categoryName" component={AllCourses} />
+       <Route path="/profile">
+        <ProtectedRoute component={Profile} />
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute component={Settings} />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
